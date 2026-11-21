@@ -117,15 +117,6 @@ function App() {
     navigate("/");
   }
 
-  if (loading) {
-    return (
-      <div className="loading-screen">
-        <div className="brand-mark"><Fuel size={22} /></div>
-        <span>Preparing training environment…</span>
-      </div>
-    );
-  }
-
   return (
     <div className="app-shell">
       <Routes>
@@ -134,7 +125,8 @@ function App() {
         <Route
           path="/portal"
           element={
-            user?.role === "INVESTOR"
+            loading ? null
+            : user?.role === "INVESTOR"
               ? <InvestorPortal user={user} onLogout={logout} />
               : <Navigate to="/login" replace />
           }
@@ -142,7 +134,8 @@ function App() {
         <Route
           path="/analyst"
           element={
-            user?.role === "ANALYST"
+            loading ? null
+            : user?.role === "ANALYST"
               ? <AnalystPortal user={user} onLogout={logout} notify={setToast} />
               : <Navigate to="/login" replace />
           }
