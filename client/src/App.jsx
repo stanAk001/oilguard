@@ -26,6 +26,19 @@ const chartData = [
   { month: "Nov", value: 78 }, { month: "Dec", value: 86 }
 ];
 
+// Preserve the transaction history already used by the investor dashboard.
+const sampleTransactions = [
+  { date: "Nov 20, 2026", title: "Living assist", note: "living assistance allocation", status: "Completed", amount: -124000 },
+  { date: "Nov 18, 2026", title: "Cards", note: "card allocation", status: "Completed", amount: -33000 },
+  { date: "Nov 16, 2026", title: "Taxes cover", note: "tax coverage allocation", status: "Completed", amount: -170000 },
+  { date: "Nov 14, 2026", title: "Mortgage", note: "mortgage allocation", status: "Completed", amount: -313000 }
+].map((transaction, index, transactions) => {
+  const balance = transactions
+    .slice(index)
+    .reduce((value, item) => value + item.amount, 640000);
+  return { ...transaction, balance };
+});
+
 const riskLabel = score =>
   score >= 90 ? "Critical" :
   score >= 70 ? "High" :
@@ -662,31 +675,31 @@ function InvestorPortal({ user, onLogout }) {
 
         <div className="txn-table">
           <div className="txn-row txn-head txn-desktop">
-            <span>Date</span><span>Activity</span><span>Status</span><span className="txn-amt">Amount</span>
+            <span>Date</span><span>Activity</span><span>Status</span><span className="txn-amt">Amount</span><span className="txn-amt">Balance</span>
           </div>
 
-          {(data?.events || []).map(event => {
+          {sampleTransactions.map(t => {
             return (
-            <article className="txn-item" key={event.id}>
+            <article className="txn-item" key={`${t.date}-${t.title}`}>
               <div className="txn-row txn-desktop">
-              <time>{event.createdAt ? new Date(event.createdAt).toLocaleDateString("en-US") : "Date unavailable"}</time>
+              <time>{t.date}</time>
 
               <div className="txn-desc">
-                <div><strong>{event.title}</strong><small>{event.description}</small></div>
+                <div><strong>{t.title}</strong><small>{t.note}</small></div>
               </div>
 
               <span
-                className={`txn-status ${event.status.toLowerCase()}`}
+                className={`txn-status ${t.status.toLowerCase()}`}
                 style={{
                   justifySelf: "center",
                   textAlign: "center"
                 }}
               >
-                {event.status}
+                {t.status}
               </span>
 
               <span
-                className={`txn-amt ${Number(event.amount) > 0 ? "credit" : "debit"}`}
+                className={`txn-amt ${t.amount > 0 ? "credit" : "debit"}`}
                 style={{
                   justifySelf: "end",
                   textAlign: "right",
@@ -694,18 +707,20 @@ function InvestorPortal({ user, onLogout }) {
                   fontVariantNumeric: "tabular-nums"
                 }}
               >
-                {event.amount == null ? "Amount unavailable" : (Number(event.amount) > 0 ? "+" : "-") + money(Math.abs(Number(event.amount)))}
+                {t.amount > 0 ? "+" : "-"}{money(Math.abs(t.amount))}
               </span>
+              <span className="txn-amt txn-bal">{money(t.balance)}</span>
               </div>
               <div className="txn-card">
                 <div className="txn-card-top">
-                  <div className="txn-card-title"><strong>{event.title}</strong><small>{event.description}</small></div>
-                  <span className={`txn-status ${event.status.toLowerCase()}`}>{event.status}</span>
+                  <div className="txn-card-title"><strong>{t.title}</strong><small>{t.note}</small></div>
+                  <span className={`txn-status ${t.status.toLowerCase()}`}>{t.status}</span>
                 </div>
                 <div className="txn-card-bottom">
-                  <time>{event.createdAt ? new Date(event.createdAt).toLocaleDateString("en-US") : "Date unavailable"}</time>
-                  <strong className={`txn-amt ${Number(event.amount) > 0 ? "credit" : "debit"}`}>{event.amount == null ? "Amount unavailable" : `${Number(event.amount) > 0 ? "+" : "-"}${money(Math.abs(Number(event.amount)))}`}</strong>
+                  <time>{t.date}</time>
+                  <strong className={`txn-amt ${t.amount > 0 ? "credit" : "debit"}`}>{t.amount > 0 ? "+" : "-"}{money(Math.abs(t.amount))}</strong>
                 </div>
+                <div className="txn-card-balance"><span>Balance</span><strong>{money(t.balance)}</strong></div>
               </div>
             </article>
             );
