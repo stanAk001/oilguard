@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import {
-  Activity, ArrowDownRight, ArrowUpRight, BarChart3, ChevronRight,
+  Activity, BarChart3, ChevronRight,
   CircleAlert, ClipboardList, FileSearch, Fuel, Gauge, LayoutDashboard,
   LogOut, Menu, Shield, ShieldCheck, Wallet
 } from "lucide-react";
@@ -25,59 +25,6 @@ const chartData = [
   { month: "Sep", value: 63 }, { month: "Oct", value: 69 },
   { month: "Nov", value: 78 }, { month: "Dec", value: 86 }
 ];
-
-const sampleTransactions = (() => {
-
-  const rows = [
-    {
-      date: "Nov 20, 2026",
-      title: "Living assist",
-      note: " living assistance allocation",
-      status: "Completed",
-      amount: -124000
-    },
-    {
-      date: "Nov 18, 2026",
-      title: "Cards",
-      note: " card allocation",
-      status: "Completed",
-      amount: -33000
-    },
-    {
-      date: "Nov 16, 2026",
-      title: "Taxes cover",
-      note: " tax coverage allocation",
-      status: "Completed",
-      amount: -170000
-    },
-    {
-      date: "Nov 14, 2026",
-      title: "Mortgage",
-      note: " mortgage allocation",
-      status: "Completed",
-      amount: -313000
-    }
-  ];
-
-  // 
-  let bal = 640000;
-
-  return rows.slice().reverse().map(r => ({
-    ...r,
-    balance: (bal += r.amount)
-  })).reverse();
-})();
-
-// One shared grid definition keeps all transaction columns aligned.
-const transactionGridStyle = {
-  display: "grid",
-  gridTemplateColumns:
-    "minmax(125px, 0.9fr) minmax(280px, 3fr) minmax(120px, 1fr) minmax(135px, 1fr) minmax(135px, 1fr)",
-  alignItems: "center",
-  columnGap: "18px",
-  width: "100%",
-  minWidth: "850px"
-};
 
 const riskLabel = score =>
   score >= 90 ? "Critical" :
@@ -553,11 +500,38 @@ function InvestorPortal({ user, onLogout }) {
   const [showWithdrawalNotice, setShowWithdrawalNotice] = useState(false);
 
   useEffect(() => {
-    api.get("/investor/overview")
-      .then(r => setData(r.data))
-      .catch(() => setError(
-        "Could not load the investor account. Check that the API and database are running."
-      ));
+    let active = true;
+
+    async function loadOverview() {
+      for (let attempt = 0; ; attempt++) {
+        try {
+          const response = await api.get("/investor/overview");
+          if (active) {
+            setData(response.data);
+            setError("");
+          }
+          return;
+        } catch (err) {
+          const status = err.response?.status;
+          const temporary = !err.response || status >= 500;
+          if (temporary && attempt < 4) {
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            continue;
+          }
+
+          if (!active) return;
+          const serverMessage = err.response?.data?.message;
+          setError(status
+            ? `Investor account request failed (HTTP ${status})${serverMessage ? `: ${serverMessage}` : "."}`
+            : `Could not reach the investor API at ${api.defaults.baseURL}. Check the API connection.`
+          );
+          return;
+        }
+      }
+    }
+
+    loadOverview();
+    return () => { active = false; };
   }, []);
 
   const account = data?.account;
