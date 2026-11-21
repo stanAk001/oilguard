@@ -12,12 +12,14 @@ import { requireAuth, requireRole } from "./middleware/auth.js";
 
 const app = express();
 const port = process.env.PORT || 5000;
+app.set("trust proxy", 1);
 app.use(helmet());
 app.use(cors({ origin: process.env.CLIENT_URL || "http://localhost:5173", credentials: true }));
 app.use(express.json({ limit: "20kb" }));
 app.use(cookieParser());
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: true, legacyHeaders: false });
-const cookieOptions = { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", maxAge: 8 * 60 * 60 * 1000, path: "/" };
+const isProd = process.env.NODE_ENV === "production";
+const cookieOptions = { httpOnly: true, sameSite: isProd ? "none" : "lax", secure: isProd, maxAge: 8 * 60 * 60 * 1000, path: "/" };
 
 app.get("/api/health", (_req, res) => res.json({ status: "ok", app: "OilGuard Training Lab" }));
 
