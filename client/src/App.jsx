@@ -660,80 +660,33 @@ function InvestorPortal({ user, onLogout }) {
           
         </div>
 
-        <div
-          className="txn-table"
-          style={{
-            width: "100%",
-            overflowX: "auto"
-          }}
-        >
-          <div className="txn-row txn-head" style={transactionGridStyle}>
-            <span>Date</span>
-            <span>Description</span>
-
-            <span style={{
-              justifySelf: "center",
-              textAlign: "center"
-            }}>
-              Status
-            </span>
-
-            <span
-              className="txn-amt"
-              style={{
-                justifySelf: "end",
-                textAlign: "right",
-                whiteSpace: "nowrap"
-              }}
-            >
-              Amount
-            </span>
-
-            <span
-              className="txn-amt"
-              style={{
-                justifySelf: "end",
-                textAlign: "right",
-                whiteSpace: "nowrap"
-              }}
-            >
-              Balance
-            </span>
+        <div className="txn-table">
+          <div className="txn-row txn-head txn-desktop">
+            <span>Date</span><span>Activity</span><span>Status</span><span className="txn-amt">Amount</span>
           </div>
 
-          {sampleTransactions.map(t => (
-            <div
-              className="txn-row"
-              key={t.date}
-              style={transactionGridStyle}
-            >
-              <time>{t.date}</time>
+          {(data?.events || []).map(event => {
+            return (
+            <article className="txn-item" key={event.id}>
+              <div className="txn-row txn-desktop">
+              <time>{event.createdAt ? new Date(event.createdAt).toLocaleDateString("en-US") : "Date unavailable"}</time>
 
               <div className="txn-desc">
-                <span className={`txn-icon ${t.amount > 0 ? "in" : "out"}`}>
-                  {t.amount > 0
-                    ? <ArrowDownRight size={14} />
-                    : <ArrowUpRight size={14} />}
-                </span>
-
-                <div>
-                  <strong>{t.title}</strong>
-                  <small>{t.note}</small>
-                </div>
+                <div><strong>{event.title}</strong><small>{event.description}</small></div>
               </div>
 
               <span
-                className={`txn-status ${t.status.toLowerCase()}`}
+                className={`txn-status ${event.status.toLowerCase()}`}
                 style={{
                   justifySelf: "center",
                   textAlign: "center"
                 }}
               >
-                {t.status}
+                {event.status}
               </span>
 
               <span
-                className={`txn-amt ${t.amount > 0 ? "credit" : "debit"}`}
+                className={`txn-amt ${Number(event.amount) > 0 ? "credit" : "debit"}`}
                 style={{
                   justifySelf: "end",
                   textAlign: "right",
@@ -741,22 +694,22 @@ function InvestorPortal({ user, onLogout }) {
                   fontVariantNumeric: "tabular-nums"
                 }}
               >
-                {t.amount > 0 ? "+" : "−"}{money(Math.abs(t.amount))}
+                {event.amount == null ? "Amount unavailable" : (Number(event.amount) > 0 ? "+" : "-") + money(Math.abs(Number(event.amount)))}
               </span>
-
-              <span
-                className="txn-amt txn-bal"
-                style={{
-                  justifySelf: "end",
-                  textAlign: "right",
-                  whiteSpace: "nowrap",
-                  fontVariantNumeric: "tabular-nums"
-                }}
-              >
-                {money(t.balance)}
-              </span>
-            </div>
-          ))}
+              </div>
+              <div className="txn-card">
+                <div className="txn-card-top">
+                  <div className="txn-card-title"><strong>{event.title}</strong><small>{event.description}</small></div>
+                  <span className={`txn-status ${event.status.toLowerCase()}`}>{event.status}</span>
+                </div>
+                <div className="txn-card-bottom">
+                  <time>{event.createdAt ? new Date(event.createdAt).toLocaleDateString("en-US") : "Date unavailable"}</time>
+                  <strong className={`txn-amt ${Number(event.amount) > 0 ? "credit" : "debit"}`}>{event.amount == null ? "Amount unavailable" : `${Number(event.amount) > 0 ? "+" : "-"}${money(Math.abs(Number(event.amount)))}`}</strong>
+                </div>
+              </div>
+            </article>
+            );
+          })}
         </div>
       </section>
     </Shell>
