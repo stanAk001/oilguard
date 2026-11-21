@@ -14,16 +14,24 @@ const app = express();
 const port = process.env.PORT || 5000;
 app.set("trust proxy", 1);
 app.use(helmet());
-app.use(cors({ origin: process.env.CLIENT_URL || "http://localhost:5173", credentials: true }));
+// CLIENT_URL can list several addresses separated by commas.
+// Trailing slashes are stripped, since browsers send origins without one.
+const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:5173")
+  .split(",")
+  .map(url => url.trim().replace(/\/+$/, ""))
+  .filter(Boolean);
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json({ limit: "20kb" }));
 app.use(cookieParser());
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: true, legacyHeaders: false });
 const isProd = process.env.NODE_ENV === "production";
 const cookieOptions = { httpOnly: true, sameSite: isProd ? "none" : "lax", secure: isProd, maxAge: 8 * 60 * 60 * 1000, path: "/" };
+// Express 4 doesn't catch errors from async handlers; pass them to the error handler.
+const wrap = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
 app.get("/api/health", (_req, res) => res.json({ status: "ok", app: "OilGuard Training Lab" }));
 
-app.post("/api/auth/login", loginLimiter, async (req, res) => {
+app.post("/api/auth/login", loginLimiter, wrap(async (req, res) => {
   const schema = z.object({ email: z.string().email().max(180), password: z.string().min(8).max(100) });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: "Enter a valid email and password." });
@@ -35,12 +43,12 @@ app.post("/api/auth/login", loginLimiter, async (req, res) => {
   const token = jwt.sign({ sub: user.id }, process.env.JWT_SECRET, { expiresIn: "8h" });
   await prisma.auditLog.create({ data: { userId: user.id, action: "LOGIN", detail: "User signed in to the training environment.", ipAddress: req.ip } });
   res.cookie("og_session", token, cookieOptions).json({ user: { id: user.id, name: user.name, email: user.email, role: user.role } });
-});
+}));
 
 app.post("/api/auth/logout", (_req, res) => res.clearCookie("og_session", { ...cookieOptions, maxAge: undefined }).json({ ok: true }));
 app.get("/api/auth/me", requireAuth, (req, res) => res.json({ user: req.user }));
 
-app.get("/api/investor/overview", requireAuth, requireRole("INVESTOR"), async (req, res) => {
+app.get("/api/investor/overview", requireAuth, requireRole("INVESTOR"), wrap(async (req, res) => {
   const [account, events] = await Promise.all([
     prisma.investmentAccount.findUnique({ where: { userId: req.user.id } }),
     prisma.activityEvent.findMany({ where: { userId: req.user.id }, orderBy: { createdAt: "desc" }, take: 10 })
@@ -50,9 +58,9 @@ app.get("/api/investor/overview", requireAuth, requireRole("INVESTOR"), async (r
     account: { investmentCapital: Number(account.investmentCapital), projectedReturns: Number(account.projectedReturns), currency: account.currency },
     events
   });
-});
+}));
 
-app.post("/api/investor/withdrawal-simulation", requireAuth, requireRole("INVESTOR"), async (req, res) => {
+app.post("/api/investor/withdrawal-simulation", requireAuth, requireRole("INVESTOR"), wrap(async (req, res) => {
   const schema = z.object({ acknowledge: z.literal(true) });
   if (!schema.safeParse(req.body).success) return res.status(400).json({ message: "Acknowledge the training scenario first." });
   const event = await prisma.activityEvent.create({
@@ -68,9 +76,9 @@ app.post("/api/investor/withdrawal-simulation", requireAuth, requireRole("INVEST
   });
   await prisma.auditLog.create({ data: { userId: req.user.id, action: "WITHDRAWAL_SIMULATION", detail: "Investor reviewed the simulated advance-fee scenario.", ipAddress: req.ip } });
   res.status(201).json({ message: "Simulation recorded. No payment was made.", event });
-});
+}));
 
-app.get("/api/analyst/overview", requireAuth, requireRole("ANALYST"), async (_req, res) => {
+app.get("/api/analyst/overview", requireAuth, requireRole("ANALYST"), wrap(async (_req, res) => {
   const [users, events, logs] = await Promise.all([
     prisma.user.count({ where: { role: "INVESTOR" } }),
     prisma.activityEvent.findMany({ include: { user: { select: { name: true, email: true } } }, orderBy: [{ riskScore: "desc" }, { createdAt: "desc" }] }),
@@ -81,9 +89,9 @@ app.get("/api/analyst/overview", requireAuth, requireRole("ANALYST"), async (_re
     metrics: { investors: users, events: events.length, highRisk: events.filter(e => e.riskScore >= 80).length, openCases: open.length },
     events, logs
   });
-});
+}));
 
-app.patch("/api/analyst/events/:id", requireAuth, requireRole("ANALYST"), async (req, res) => {
+app.patch("/api/analyst/events/:id", requireAuth, requireRole("ANALYST"), wrap(async (req, res) => {
   const schema = z.object({ status: z.enum(["OPEN", "REVIEWED", "CLOSED"]) });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: "Invalid event status." });
@@ -92,7 +100,7 @@ app.patch("/api/analyst/events/:id", requireAuth, requireRole("ANALYST"), async 
   const event = await prisma.activityEvent.update({ where: { id: existing.id }, data: { status: parsed.data.status } });
   await prisma.auditLog.create({ data: { userId: req.user.id, action: "CASE_STATUS_UPDATED", detail: `Event ${event.id} marked ${event.status}.`, ipAddress: req.ip } });
   res.json({ event });
-});
+}));
 
 app.use((err, _req, res, _next) => {
   console.error(err);

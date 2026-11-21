@@ -107,14 +107,17 @@ function App() {
 
   async function login(email, password) {
     // The free Render server sleeps when idle; the first request can fail with
-    // no response while it wakes up. Retry those, but not real errors (401 etc).
+    // no response or a 5xx while it (or the database) wakes up. Retry those,
+    // but not real errors like a wrong password (401).
     let r;
     for (let attempt = 0; ; attempt++) {
       try {
         r = await api.post("/auth/login", { email, password });
         break;
       } catch (err) {
-        if (err.response || attempt >= 4) throw err;
+        const status = err.response?.status;
+        const temporary = !err.response || status >= 500;
+        if (!temporary || attempt >= 4) throw err;
         await new Promise(res => setTimeout(res, 3000));
       }
     }
