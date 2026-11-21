@@ -106,7 +106,18 @@ function App() {
   }, [toast]);
 
   async function login(email, password) {
-    const r = await api.post("/auth/login", { email, password });
+    // The free Render server sleeps when idle; the first request can fail with
+    // no response while it wakes up. Retry those, but not real errors (401 etc).
+    let r;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        r = await api.post("/auth/login", { email, password });
+        break;
+      } catch (err) {
+        if (err.response || attempt >= 4) throw err;
+        await new Promise(res => setTimeout(res, 3000));
+      }
+    }
     setUser(r.data.user);
     navigate(r.data.user.role === "ANALYST" ? "/analyst" : "/portal");
   }
