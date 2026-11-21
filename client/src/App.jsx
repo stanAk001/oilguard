@@ -86,7 +86,7 @@ function App() {
         <Route
           path="/portal"
           element={
-            loading ? null
+            loading ? <div className="loading-screen" role="status" aria-live="polite">Checking your secure session…</div>
             : user?.role === "INVESTOR"
               ? <InvestorPortal user={user} onLogout={logout} />
               : <Navigate to="/login" replace />
@@ -95,7 +95,7 @@ function App() {
         <Route
           path="/analyst"
           element={
-            loading ? null
+            loading ? <div className="loading-screen" role="status" aria-live="polite">Checking your secure session…</div>
             : user?.role === "ANALYST"
               ? <AnalystPortal user={user} onLogout={logout} notify={setToast} />
               : <Navigate to="/login" replace />

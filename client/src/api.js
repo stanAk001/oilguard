@@ -7,5 +7,6 @@ export const api = axios.create({
   baseURL: import.meta.env.PROD
     ? (configuredApiUrl?.startsWith("/") ? configuredApiUrl : defaultApiUrl)
     : (configuredApiUrl || defaultApiUrl),
+  timeout: 15000,
   withCredentials: true
 });
